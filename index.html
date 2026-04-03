@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>CarDle - Expert Automobile</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #121212; color: white; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 20px; overflow-x: hidden;}
+        .container { max-width: 700px; width: 100%; text-align: center; }
+        
+        /* Menu de navigation */
+        .nav-menu { margin-bottom: 30px; display: flex; gap: 10px; justify-content: center; }
+        .nav-btn { background: #333; color: #aaa; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .nav-btn.active { background: #e74c3c; color: white; }
+        .nav-btn:hover:not(.active) { background: #444; color: white; }
+
+        /* Sections de jeu */
+        .game-section { display: none; }
+        .game-section.active { display: block; }
+
+        /* Barre de recherche */
+        .search-container { position: relative; margin-bottom: 20px; z-index: 100; }
+        input { width: 100%; padding: 15px; border-radius: 8px; border: none; font-size: 18px; background: #222; color: white; outline: none; box-sizing: border-box; }
+        input:disabled { opacity: 0.5; cursor: not-allowed; }
+        #autocomplete-list { position: absolute; top: 100%; left: 0; right: 0; background: #222; border: 1px solid #444; border-radius: 0 0 8px 8px; max-height: 250px; overflow-y: auto; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+        .suggestion { padding: 12px; cursor: pointer; text-align: left; border-bottom: 1px solid #333; }
+        .suggestion:hover { background: #e74c3c; }
+
+        /* --- MODE CLASSIQUE & FLIP ANIMATION --- */
+        .row {display: grid; grid-template-columns: repeat(6, 1fr); /* Changé de 5 à 6 */gap: 8px; margin-top: 10px;}
+
+        .flip-container {background-color: transparent; width: 100%; height: 65px; perspective: 1000px; /* Effet de profondeur */}
+
+        .flip-inner {position: relative; width: 100%; height: 100%; transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); transform-style: preserve-3d;}
+
+        /* La classe qui déclenche la rotation */
+        .flipped {transform: rotateY(180deg);}
+
+        .flip-front, .flip-back {position: absolute; width: 100%; height: 100%; -webkit-backface-visibility: hidden; /* Cache la face quand elle est retournée */backface-visibility: hidden; 
+                                border-radius: 4px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 13px;}
+
+        /* Face arrière (GRISE - Visible au début) */
+        .flip-back {background-color: #333; color: #888; z-index: 2; transform: rotateY(0deg);}
+
+        /* Face avant (COULEUR - Cachée au début, elle est "derrière") */
+        .flip-front {background-color: #444; color: white; transform: rotateY(180deg);}
+        /* Couleurs de validation (appliquées sur la face AVANT) */
+        .correct { background-color: #27ae60 !important; border: 1px solid #2ecc71; }
+        .wrong { background-color: #c0392b !important; border: 1px solid #e74c3c; }
+        
+        /* Style des logos */
+        .cell-logo { max-width: 85%; max-height: 85%; object-fit: contain; filter: drop-shadow(0px 0px 2px rgba(0,0,0,0.5)); display: block; margin: auto; }
+
+        /* --- Mode Photo --- */
+        .photo-frame { width: 100%; max-width: 500px; height: 300px; margin: 20px auto; border: 4px solid #333; border-radius: 10px; overflow: hidden; background: #000; display: flex; align-items: center; justify-content: center; position: relative;}
+        #blurredCar { width: 100%; height: 100%; object-fit: cover; transition: filter 0.5s ease; }
+        .photo-guesses { margin-top: 20px; text-align: left; max-height: 200px; overflow-y: auto; padding: 10px; background: #1a1a1a; border-radius: 5px;}
+        .photo-guess-entry { padding: 8px; border-bottom: 1px solid #333; color: #ccc; }
+        .photo-guess-entry.incorrect { color: #e74c3c; text-decoration: line-through; }
+
+        /* Modal de Victoire */
+        #victoryModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: #222; padding: 30px; border-radius: 15px; text-align: center; border: 2px solid #e74c3c; max-width: 400px; position: relative;}
+        .modal-content img { width: 100%; border-radius: 10px; margin: 15px 0; border: 1px solid #444; }
+        .close-modal { position: absolute; top: 10px; right: 15px; cursor: pointer; font-size: 24px; color: #888; transition: 0.2s; }
+        .close-modal:hover { color: #e74c3c; }
+        .btn-restart { background: #e74c3c; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        #photoCarName {
+            margin: 15px 0;
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            -webkit-text-stroke: 1px black;
+            text-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🏎️ CarDle</h1>
+    
+    <div class="nav-menu">
+        <button class="nav-btn active" onclick="switchMode('classic', event)">Mode Classique</button>
+        <button class="nav-btn" onclick="switchMode('photo', event)">Photo Mystère</button>
+    </div>
+
+    <div class="search-container">
+        <input type="text" id="carInput" placeholder="Tapez une marque ou un modèle..." autocomplete="off">
+        <div id="autocomplete-list"></div>
+    </div>
+
+    <p>Tentatives : <span id="count">0</span></p>
+
+    <div id="classicSection" class="game-section active">
+    <div class="row header-row">
+        <div>Modèle</div> <div>Marque</div>
+        <div>Pays</div>
+        <div>Moteur</div>
+        <div>Année</div>
+        <div>Énergie</div>
+    </div>
+    <div id="classicGuesses"></div>
+    </div>
+
+    <div id="photoSection" class="game-section">
+    <div class="photo-frame">
+        <img id="blurredCar" src="" alt="Photo mystère">
+    </div>
+    
+    <div id="photoCarName"></div>
+    
+    <div id="photoGuesses" class="photo-guesses">
+        </div>
+    </div>
+
+</div>
+
+<div id="victoryModal">
+    <div class="modal-content">
+        <span class="close-modal" onclick="closeModal()">&times;</span>
+        <h2 id="victoryTitle">🎯 BIEN JOUÉ !</h2>
+        <p id="victoryText"></p>
+        <img id="victoryCarImage" src="" alt="Voiture gagnante">
+        <br>
+        <button class="btn-restart" onclick="closeModal()">Fermer</button>
+    </div>
+</div>
+
+<script>
+    // 1. Base de données
+    const cars = [
+        { name: "911 Carrera", brand: "Porsche", country: "Allemagne", engine: "Flat-6", year: 1963, fuel: "Essence", img: "911.jpg" },
+        { name: "F40", brand: "Ferrari", country: "Italie", engine: "V8", year: 1987, fuel: "Essence", img: "f40.jpg" },
+        { name: "Golf GTI", brand: "Volkswagen", country: "Allemagne", engine: "L4", year: 1974, fuel: "Essence", img: "golf.jpg" },
+        { name: "Model S", brand: "Tesla", country: "USA", engine: "Électrique", year: 2012, fuel: "Électrique", img: "models.jpg" },
+        { name: "A110", brand: "Alpine", country: "France", engine: "L4", year: 2017, fuel: "Essence", img: "a110.jpg" }
+    ];
+
+    // --- ÉTAT DU JEU PAR MODE ---
+    let states = {
+        classic: { attempts: 0, guessedCars: [], solved: false, targetCar: cars[Math.floor(Math.random() * cars.length)] },
+        photo: { attempts: 0, guessedCars: [], solved: false, targetCar: cars[Math.floor(Math.random() * cars.length)], blur: 20 }
+    };
+
+    let currentMode = 'classic';
+    const input = document.getElementById('carInput');
+    const list = document.getElementById('autocomplete-list');
+    const blurredImg = document.getElementById('blurredCar');
+
+    function initGame() {
+        updateDisplay();
+        console.log("Solution Classique:", states.classic.targetCar.name);
+        console.log("Solution Photo:", states.photo.targetCar.name);
+    }
+
+    // --- NAVIGATION ---
+    function switchMode(mode, event) {
+        if (mode === currentMode) return;
+        currentMode = mode;
+        document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+        event.currentTarget.classList.add('active');
+        document.querySelectorAll('.game-section').forEach(sec => sec.classList.remove('active'));
+        document.getElementById(mode + 'Section').classList.add('active');
+        updateDisplay();
+    }
+
+    function updateDisplay() {
+    const state = states[currentMode];
+    document.getElementById('count').textContent = state.attempts;
+
+    const nameDisplay = document.getElementById('photoCarName');
+
+    // On gère l'affichage du nom seulement si on est en mode photo
+    if (currentMode === 'photo') {
+        blurredImg.src = state.targetCar.img;
+        blurredImg.style.filter = `blur(${state.blur}px)`;
+        
+        // SI GAGNÉ : on affiche le nom, SINON : on le cache
+        if (state.solved) {
+            nameDisplay.textContent = '✅' + `${state.targetCar.brand} ${state.targetCar.name}`+ '✅';
+            nameDisplay.style.display = 'block';
+            nameDisplay.style.animation = 'fadeIn 0.8s ease-out';
+        } else {
+            nameDisplay.style.display = 'none';
+        }
+    } else {
+        // Cache le nom si on repasse en mode classique
+        nameDisplay.style.display = 'none';
+    }
+
+    // Gestion de l'input
+    if (state.solved) {
+        input.disabled = true;
+        input.placeholder = "Mode terminé !";
+    } else {
+        input.disabled = false;
+        input.placeholder = "Tapez une marque ou un modèle...";
+    }
+    }
+
+    // --- AUTOCOMPLÉTION ---
+    input.addEventListener('input', function() {
+        const val = this.value.toLowerCase();
+        const state = states[currentMode];
+        list.innerHTML = '';
+        if (!val || state.solved) return;
+        const matches = cars.filter(c => (c.brand + " " + c.name).toLowerCase().includes(val) && !state.guessedCars.includes(c.name));
+        matches.forEach(car => {
+            const div = document.createElement('div');
+            div.className = 'suggestion';
+            div.innerHTML = `<strong>${car.brand}</strong> ${car.name}`;
+            div.onclick = () => { input.value = car.name; list.innerHTML = ''; submitGuess(car); };
+            list.appendChild(div);
+        });
+    });
+
+    // --- LOGIQUE DE VALIDATION ---
+    function submitGuess(userGuess) {
+        let state = states[currentMode];
+        if (state.solved) return;
+        state.attempts++;
+        state.guessedCars.push(userGuess.name);
+        document.getElementById('count').textContent = state.attempts;
+        input.value = "";
+        if (currentMode === 'classic') handleClassicGuess(userGuess, state);
+        else handlePhotoGuess(userGuess, state);
+    }
+
+    function handleClassicGuess(guess, state) {
+        displayClassicRow(guess, state.targetCar);
+        if (guess.name === state.targetCar.name) {
+            state.solved = true;
+            // On attend la fin de l'animation pour montrer la victoire
+            setTimeout(() => showVictory(state), 2800); 
+        }
+    }
+
+    function handlePhotoGuess(guess, state) {
+    if (guess.name === state.targetCar.name) {
+        state.solved = true;
+        state.blur = 0;
+        // On met à jour l'affichage AVANT la popup
+        updateDisplay(); 
+        showVictory(state);
+    } else {
+        state.blur = Math.max(0, state.blur - 4);
+        blurredImg.style.filter = `blur(${state.blur}px)`;
+        
+        const entry = document.createElement('div');
+        entry.className = 'photo-guess-entry incorrect';
+        entry.textContent = `${state.attempts}. ${guess.brand} ${guess.name}`;
+        document.getElementById('photoGuesses').prepend(entry);
+    }
+    }
+
+    // --- FONCTIONS CLASSIQUE & ANIMATION FLIP ---
+    function displayClassicRow(guess, target) {
+    const row = document.createElement('div');
+    row.className = 'row';
+    
+    // On ajoute 'name' (le modèle) au début de la liste des champs
+    const fields = ['name', 'brand', 'country', 'engine', 'year', 'fuel'];
+    
+    fields.forEach((field, index) => {
+        const container = document.createElement('div');
+        container.className = 'flip-container';
+        
+        const inner = document.createElement('div');
+        inner.className = 'flip-inner';
+        
+        const front = document.createElement('div');
+        front.className = 'flip-front'; 
+        
+        const back = document.createElement('div');
+        back.className = 'flip-back';
+        back.textContent = "?";
+
+        // --- Logique d'affichage sur la face AVANT ---
+        if (field === 'brand') {
+            const logoImg = document.createElement('img');
+            logoImg.src = `logo_${guess.brand.toLowerCase()}.png`; 
+            logoImg.alt = guess.brand;
+            logoImg.className = 'cell-logo';
+            front.appendChild(logoImg);
+        } else {
+            // Pour le Modèle (name) et les autres, on affiche le texte
+            front.textContent = guess[field];
+        }
+
+        // --- Validation des couleurs ---
+        // Le modèle est "correct" (vert) uniquement si c'est exactement le même
+        if (guess[field] === target[field]) {
+            front.classList.add('correct');
+        } else {
+            front.classList.add('wrong');
+            if (field === 'year') {
+                front.textContent += (guess.year < target.year) ? " ⬆️" : " ⬇️";
+            }
+        }
+
+        inner.appendChild(back);
+        inner.appendChild(front);
+        container.appendChild(inner);
+        row.appendChild(container);
+
+        setTimeout(() => {
+            inner.classList.add('flipped');
+        }, index * 200); 
+    });
+
+    document.getElementById('classicGuesses').prepend(row);
+    }
+
+    // --- VICTOIRE & FERMETURE ---
+    function showVictory(state) {
+        document.getElementById('victoryText').innerHTML = `Trouvé en <b>${state.attempts} coups</b> !`;
+        document.getElementById('victoryCarImage').src = state.targetCar.img;
+        document.getElementById('victoryModal').style.display = 'flex';
+        updateDisplay(); 
+    }
+
+    function closeModal() {
+        document.getElementById('victoryModal').style.display = 'none';
+    }
+
+    document.addEventListener('click', (e) => { if (e.target !== input) list.innerHTML = ''; });
+    initGame();
+</script>
+
+</body>
+</html>
