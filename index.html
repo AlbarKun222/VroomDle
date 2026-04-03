@@ -80,23 +80,14 @@
             text-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
         }
 
-        .hint-cell {
-            background: #2c3e50 !important;
-            cursor: not-allowed;
-            opacity: 0.5;
-            transition: 0.3s;
-            height: 80px !important;
-            flex-direction: column;
-        }
-        .hint-cell.unlocked {
-            background: #e67e22 !important;
-            cursor: pointer;
-            opacity: 1;
-            border: 2px solid white;
-        }
-        .hint-cell.revealed {
-            background: #27ae60 !important;
-        }
+        /* Conteneur des indices pour le mode Surnom */
+        .hint-row {display: flex;justify-content: center; /* Centre les éléments horizontalement */gap: 15px;margin: 20px 0;}
+
+        .hint-cell {width: 120px; /* Largeur fixe pour garder un bel alignement */height: 80px;background: #2c3e50;border-radius: 8px;display: flex;flex-direction: column;align-items: center;justify-content: center;cursor: not-allowed; opacity: 0.5; transition: all 0.3s ease; font-size: 12px;}
+
+        .hint-cell.unlocked {background: #e67e22 !important;cursor: pointer;opacity: 1;border: 2px solid white;}
+
+        .hint-cell.revealed {background: #27ae60 !important;font-size: 14px;}
     </style>
 </head>
 <body>
@@ -144,10 +135,11 @@
         <h2 id="displayNickname" style="font-size: 32px; color: #f1c40f; margin: 0;"></h2>
     </div>
 
-    <div class="row" style="margin-bottom: 20px;">
-        <div id="hint1" class="cell hint-cell" onclick="revealHint(1)">Indice 1<br><small>(5 essais)</small></div>
-        <div id="hint2" class="cell hint-cell" onclick="revealHint(2)">Indice 2<br><small>(10 essais)</small></div>
-        <div id="hint3" class="cell hint-cell" onclick="revealHint(3)">Indice 3<br><small>(15 essais)</small></div>
+    <!-- Utilisation de hint-row pour le centrage -->
+    <div class="hint-row">
+        <div id="hint1" class="hint-cell" onclick="revealHint(1)">Indice 1<br><small>(5 essais)</small></div>
+        <div id="hint2" class="hint-cell" onclick="revealHint(2)">Indice 2<br><small>(10 essais)</small></div>
+        <div id="hint3" class="hint-cell" onclick="revealHint(3)">Indice 3<br><small>(15 essais)</small></div>
     </div>
 
     <div id="nicknameGuesses" class="photo-guesses"></div>
@@ -381,35 +373,48 @@
             const state = states.nickname;
             const el = document.getElementById(`hint${num}`);
             
-            // On ne révèle que si c'est débloqué et pas déjà révélé
-            if (!el.classList.contains('unlocked') || state.hintsRevealed[num-1]) return;
+            // On autorise la révélation si :
+            // 1. La case est débloquée par les essais
+            // 2. OU si la partie est gagnée (state.solved)
+            if ((!el.classList.contains('unlocked') && !state.solved) || state.hintsRevealed[num-1]) return;
 
             state.hintsRevealed[num-1] = true;
             el.classList.add('revealed');
+            el.classList.remove('unlocked'); // On enlève le orange pour laisser le vert
 
-            if (num === 1) el.innerHTML = `Année :<br>${state.targetCar.year}`;
-            if (num === 2) el.innerHTML = `Pays :<br>${state.targetCar.country}`;
+            // ... (reste du code pour afficher l'année, le pays ou le logo)
+            if (num === 1) el.innerHTML = `<b>Année</b><br>${state.targetCar.year}`;
+            if (num === 2) el.innerHTML = `<b>Pays</b><br>${state.targetCar.country}`;
             if (num === 3) {
                 el.innerHTML = "";
                 const img = document.createElement('img');
                 img.src = `logo_${state.targetCar.brand.toLowerCase()}.png`;
-                img.className = "cell-logo";
+                img.style.height = "40px"; // On ajuste un peu la taille pour l'indice
                 el.appendChild(img);
             }
         }
 
-function handleNicknameGuess(guess, state) {
-    if (guess.name === state.targetCar.name) {
-        state.solved = true;
-        showVictory(state);
-    } else {
-        const entry = document.createElement('div');
-        entry.className = 'photo-guess-entry incorrect';
-        entry.textContent = `${state.attempts}. ${guess.brand} ${guess.name}`;
-        document.getElementById('nicknameGuesses').prepend(entry);
-        checkHintUnlock(state.attempts);
-    }
-}
+        function handleNicknameGuess(guess, state) {
+            if (guess.name === state.targetCar.name) {
+                state.solved = true;
+                
+                // --- NOUVEAU : Révéler tous les indices à la victoire ---
+                for (let i = 1; i <= 3; i++) {
+                    const el = document.getElementById(`hint${i}`);
+                    // On les marque comme débloqués et on appelle la fonction de révélation
+                    el.classList.add('unlocked'); 
+                    revealHint(i); 
+                }
+
+                showVictory(state);
+            } else {
+                const entry = document.createElement('div');
+                entry.className = 'photo-guess-entry incorrect';
+                entry.textContent = `${state.attempts}. ${guess.brand} ${guess.name}`;
+                document.getElementById('nicknameGuesses').prepend(entry);
+                checkHintUnlock(state.attempts);
+            }
+        }
 
     // --- VICTOIRE & FERMETURE ---
     function showVictory(state) {
