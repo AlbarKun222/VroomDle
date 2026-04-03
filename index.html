@@ -79,6 +79,24 @@
             -webkit-text-stroke: 1px black;
             text-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
         }
+
+        .hint-cell {
+            background: #2c3e50 !important;
+            cursor: not-allowed;
+            opacity: 0.5;
+            transition: 0.3s;
+            height: 80px !important;
+            flex-direction: column;
+        }
+        .hint-cell.unlocked {
+            background: #e67e22 !important;
+            cursor: pointer;
+            opacity: 1;
+            border: 2px solid white;
+        }
+        .hint-cell.revealed {
+            background: #27ae60 !important;
+        }
     </style>
 </head>
 <body>
@@ -89,6 +107,7 @@
     <div class="nav-menu">
         <button class="nav-btn active" onclick="switchMode('classic', event)">Mode Classique</button>
         <button class="nav-btn" onclick="switchMode('photo', event)">Photo Mystère</button>
+        <button class="nav-btn" onclick="switchMode('nickname', event)">Surnom</button>
     </div>
 
     <div class="search-container">
@@ -120,6 +139,20 @@
         </div>
     </div>
 
+    <div id="nicknameSection" class="game-section">
+    <div style="background: #1a1a1a; padding: 30px; border-radius: 15px; border: 2px dashed #444; margin-bottom: 20px;">
+        <h2 id="displayNickname" style="font-size: 32px; color: #f1c40f; margin: 0;"></h2>
+    </div>
+
+    <div class="row" style="margin-bottom: 20px;">
+        <div id="hint1" class="cell hint-cell" onclick="revealHint(1)">Indice 1<br><small>(5 essais)</small></div>
+        <div id="hint2" class="cell hint-cell" onclick="revealHint(2)">Indice 2<br><small>(10 essais)</small></div>
+        <div id="hint3" class="cell hint-cell" onclick="revealHint(3)">Indice 3<br><small>(15 essais)</small></div>
+    </div>
+
+    <div id="nicknameGuesses" class="photo-guesses"></div>
+    </div>
+
 </div>
 
 <div id="victoryModal">
@@ -136,17 +169,18 @@
 <script>
     // 1. Base de données
     const cars = [
-        { name: "911 Carrera", brand: "Porsche", country: "Allemagne", engine: "Flat-6", year: 1963, fuel: "Essence", img: "911.jpg" },
-        { name: "F40", brand: "Ferrari", country: "Italie", engine: "V8", year: 1987, fuel: "Essence", img: "f40.jpg" },
-        { name: "Golf GTI", brand: "Volkswagen", country: "Allemagne", engine: "L4", year: 1974, fuel: "Essence", img: "golf.jpg" },
-        { name: "Model S", brand: "Tesla", country: "USA", engine: "Électrique", year: 2012, fuel: "Électrique", img: "models.jpg" },
-        { name: "A110", brand: "Alpine", country: "France", engine: "L4", year: 2017, fuel: "Essence", img: "a110.jpg" }
+        { name: "911 Carrera", brand: "Porsche", country: "Allemagne", engine: "Flat-6", year: 1963, fuel: "Essence", img: "911.jpg",nickname: "5" },
+        { name: "F40", brand: "Ferrari", country: "Italie", engine: "V8", year: 1987, fuel: "Essence", img: "F40.jpg",nickname: "4" },
+        { name: "Golf GTI", brand: "Volkswagen", country: "Allemagne", engine: "L4", year: 1974, fuel: "Essence", img: "golf.jpg",nickname: "3" },
+        { name: "Model S", brand: "Tesla", country: "USA", engine: "Électrique", year: 2012, fuel: "Électrique", img: "models.jpg",nickname: "2" },
+        { name: "A110", brand: "Alpine", country: "France", engine: "L4", year: 2017, fuel: "Essence", img: "a110.jpg",nickname: "1" }
     ];
 
     // --- ÉTAT DU JEU PAR MODE ---
     let states = {
         classic: { attempts: 0, guessedCars: [], solved: false, targetCar: cars[Math.floor(Math.random() * cars.length)] },
-        photo: { attempts: 0, guessedCars: [], solved: false, targetCar: cars[Math.floor(Math.random() * cars.length)], blur: 20 }
+        photo: { attempts: 0, guessedCars: [], solved: false, targetCar: cars[Math.floor(Math.random() * cars.length)], blur: 20 },
+        nickname: { attempts: 0, guessedCars: [], solved: false, targetCar: cars[Math.floor(Math.random() * cars.length)],hintsRevealed: [false, false, false]}
     };
 
     let currentMode = 'classic';
@@ -176,6 +210,14 @@
     document.getElementById('count').textContent = state.attempts;
 
     const nameDisplay = document.getElementById('photoCarName');
+
+    if (currentMode === 'nickname') {
+    const state = states.nickname;
+    document.getElementById('displayNickname').textContent = `"${state.targetCar.nickname}"`;
+    
+    // Vérifier le déblocage des indices
+    checkHintUnlock(state.attempts);
+    }
 
     // On gère l'affichage du nom seulement si on est en mode photo
     if (currentMode === 'photo') {
@@ -230,7 +272,8 @@
         document.getElementById('count').textContent = state.attempts;
         input.value = "";
         if (currentMode === 'classic') handleClassicGuess(userGuess, state);
-        else handlePhotoGuess(userGuess, state);
+        else if (currentMode === 'photo') handlePhotoGuess(userGuess, state);
+        else if (currentMode === 'nickname') handleNicknameGuess(userGuess, state);
     }
 
     function handleClassicGuess(guess, state) {
@@ -317,6 +360,53 @@
 
     document.getElementById('classicGuesses').prepend(row);
     }
+
+    function checkHintUnlock(attempts) {
+            if (currentMode !== 'nickname') return;
+            const state = states.nickname;
+
+            const h1 = document.getElementById('hint1');
+            const h2 = document.getElementById('hint2');
+            const h3 = document.getElementById('hint3');
+
+            if (attempts >= 5 && !state.hintsRevealed[0]) h1.classList.add('unlocked');
+            if (attempts >= 10 && !state.hintsRevealed[1]) h2.classList.add('unlocked');
+            if (attempts >= 15 && !state.hintsRevealed[2]) h3.classList.add('unlocked');
+        }
+
+        function revealHint(num) {
+            const state = states.nickname;
+            const el = document.getElementById(`hint${num}`);
+            
+            // On ne révèle que si c'est débloqué et pas déjà révélé
+            if (!el.classList.contains('unlocked') || state.hintsRevealed[num-1]) return;
+
+            state.hintsRevealed[num-1] = true;
+            el.classList.add('revealed');
+
+            if (num === 1) el.innerHTML = `Année :<br>${state.targetCar.year}`;
+            if (num === 2) el.innerHTML = `Pays :<br>${state.targetCar.country}`;
+            if (num === 3) {
+                el.innerHTML = "";
+                const img = document.createElement('img');
+                img.src = `logo_${state.targetCar.brand.toLowerCase()}.png`;
+                img.className = "cell-logo";
+                el.appendChild(img);
+            }
+        }
+
+function handleNicknameGuess(guess, state) {
+    if (guess.name === state.targetCar.name) {
+        state.solved = true;
+        showVictory(state);
+    } else {
+        const entry = document.createElement('div');
+        entry.className = 'photo-guess-entry incorrect';
+        entry.textContent = `${state.attempts}. ${guess.brand} ${guess.name}`;
+        document.getElementById('nicknameGuesses').prepend(entry);
+        checkHintUnlock(state.attempts);
+    }
+}
 
     // --- VICTOIRE & FERMETURE ---
     function showVictory(state) {
