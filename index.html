@@ -379,15 +379,15 @@ async function saveWin(mode, carName) {
     }
 
     // --- NAVIGATION ---
-    function switchMode(mode, event) {
-        if (mode === currentMode) return;
-        currentMode = mode;
-        document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-        event.currentTarget.classList.add('active');
-        document.querySelectorAll('.game-section').forEach(sec => sec.classList.remove('active'));
-        document.getElementById(mode + 'Section').classList.add('active');
-        updateDisplay();
-    }
+    window.switchMode = (mode, event) => {
+    if (mode === currentMode) return;
+    currentMode = mode;
+    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+    document.querySelectorAll('.game-section').forEach(sec => sec.classList.remove('active'));
+    document.getElementById(mode + 'Section').classList.add('active');
+    updateDisplay();
+    };
 
     function updateDisplay() {
     const state = states[currentMode];
@@ -432,18 +432,22 @@ async function saveWin(mode, carName) {
     }
 
     // --- AUTOCOMPLÉTION ---
-    input.addEventListener('input', function() {
-        const val = this.value.toLowerCase();
-        const state = states[currentMode];
-        list.innerHTML = '';
-        if (!val || state.solved) return;
-        const matches = cars.filter(c => (c.brand + " " + c.name).toLowerCase().includes(val) && !state.guessedCars.includes(c.name));
-        matches.forEach(car => {
-            const div = document.createElement('div');
-            div.className = 'suggestion';
-            div.innerHTML = `<strong>${car.brand}</strong> ${car.name}`;
-            div.onclick = () => { input.value = car.name; list.innerHTML = ''; submitGuess(car); };
-            list.appendChild(div);
+    // À mettre à la fin de ton script module
+    document.getElementById('carInput').addEventListener('input', function() {
+    // ... tout le code de l'autocomplétion qui était là avant ...
+        input.addEventListener('input', function() {
+            const val = this.value.toLowerCase();
+            const state = states[currentMode];
+            list.innerHTML = '';
+            if (!val || state.solved) return;
+            const matches = cars.filter(c => (c.brand + " " + c.name).toLowerCase().includes(val) && !state.guessedCars.includes(c.name));
+            matches.forEach(car => {
+                const div = document.createElement('div');
+                div.className = 'suggestion';
+                div.innerHTML = `<strong>${car.brand}</strong> ${car.name}`;
+                div.onclick = () => { input.value = car.name; list.innerHTML = ''; submitGuess(car); };
+                list.appendChild(div);
+            });
         });
     });
 
@@ -558,30 +562,26 @@ async function saveWin(mode, carName) {
             if (attempts >= 15 && !state.hintsRevealed[2]) h3.classList.add('unlocked');
         }
 
-        function revealHint(num) {
-            const state = states.nickname;
-            const el = document.getElementById(`hint${num}`);
-            
-            // On autorise la révélation si :
-            // 1. La case est débloquée par les essais
-            // 2. OU si la partie est gagnée (state.solved)
-            if ((!el.classList.contains('unlocked') && !state.solved) || state.hintsRevealed[num-1]) return;
+    window.revealHint = (num) => {
+    const state = states.nickname;
+    const el = document.getElementById(`hint${num}`);
+    
+    if ((!el.classList.contains('unlocked') && !state.solved) || state.hintsRevealed[num-1]) return;
 
-            state.hintsRevealed[num-1] = true;
-            el.classList.add('revealed');
-            el.classList.remove('unlocked'); // On enlève le orange pour laisser le vert
+    state.hintsRevealed[num-1] = true;
+    el.classList.add('revealed');
+    el.classList.remove('unlocked');
 
-            // ... (reste du code pour afficher l'année, le pays ou le logo)
-            if (num === 1) el.innerHTML = `<b>Année</b><br>${state.targetCar.year}`;
-            if (num === 2) el.innerHTML = `<b>Pays</b><br>${state.targetCar.country}`;
-            if (num === 3) {
-                el.innerHTML = "";
-                const img = document.createElement('img');
-                img.src = `logo_${state.targetCar.brand.toLowerCase()}.png`;
-                img.style.height = "40px"; // On ajuste un peu la taille pour l'indice
-                el.appendChild(img);
-            }
+    if (num === 1) el.innerHTML = `<b>Année</b><br>${state.targetCar.year}`;
+    if (num === 2) el.innerHTML = `<b>Pays</b><br>${state.targetCar.country}`;
+    if (num === 3) {
+        el.innerHTML = "";
+        const img = document.createElement('img');
+        img.src = `logo_${state.targetCar.brand.toLowerCase()}.png`;
+        img.style.height = "40px";
+        el.appendChild(img);
         }
+    };
 
         function handleNicknameGuess(guess, state) {
             if (guess.name === state.targetCar.name) {
@@ -614,9 +614,9 @@ async function saveWin(mode, carName) {
         saveWin(currentMode, state.targetCar.brand + " " + state.targetCar.name);
     }
 
-    function closeModal() {
-        document.getElementById('victoryModal').style.display = 'none';
-    }
+    window.closeModal = () => {
+    document.getElementById('victoryModal').style.display = 'none';
+    };
 
     document.addEventListener('click', (e) => { if (e.target !== input) list.innerHTML = ''; });
     initGame();
