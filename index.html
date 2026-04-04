@@ -97,9 +97,12 @@
         <input type="email" id="emailInput" placeholder="Email" style="margin-bottom: 10px;">
         <input type="password" id="passInput" placeholder="Mot de passe" style="margin-bottom: 10px;">
         
+        <!-- Ce conteneur sera modifié par la fonction toggleAuthMode -->
         <div id="authButtons">
-            <button class="btn-restart" onclick="handleAuth('login')">Se connecter</button>
-            <p style="font-size: 12px; margin: 10px 0;">Pas de compte ? <span onclick="toggleAuth()" style="color: #e74c3c; cursor: pointer; text-decoration: underline;">S'inscrire</span></p>
+            <button class="btn-restart" onclick="handleAuth()">Se connecter</button>
+            <p style="font-size: 12px; margin: 10px 0;">
+                Pas de compte ? <span onclick="toggleAuthMode()" style="color: #e74c3c; cursor: pointer; text-decoration: underline;">S'inscrire</span>
+            </p>
         </div>
     </div>
 </div>
@@ -234,26 +237,36 @@
 
     // --- COPIE ICI TOUTE LA LOGIQUE DE TON JEU (cars, states, submitGuess, etc.) ---
     
-    let authMode = 'login';
-    let userData = null;
+    window.currentAuthMode = 'login'; 
 
+window.toggleAuthMode = () => {
+    const title = document.getElementById('authTitle');
+    const authButtons = document.getElementById('authButtons');
+    const emailInput = document.getElementById('emailInput');
+    const passInput = document.getElementById('passInput');
 
-    window.toggleAuth = () => {
-        authMode = authMode === 'login' ? 'register' : 'login';
-        const title = document.getElementById('authTitle');
-        const btn = document.querySelector('#authModal button');
-        const link = document.querySelector('#authModal p');
-
-        if (authMode === 'register') {
-            title.textContent = "Inscription";
-            btn.textContent = "Créer mon compte";
-            link.innerHTML = 'Déjà un compte ? <a href="#" onclick="toggleAuth()">Se connecter</a>';
-        } else {
-            title.textContent = "Connexion";
-            btn.textContent = "Se connecter";
-            link.innerHTML = 'Pas de compte ? <a href="#" onclick="toggleAuth()">S\'inscrire</a>';
-        }
-    };
+    if (window.currentAuthMode === 'login') {
+        // Passage en mode INSCRIPTION
+        window.currentAuthMode = 'register';
+        title.textContent = "Inscription";
+        authButtons.innerHTML = `
+            <button class="btn-restart" onclick="handleAuth()">Créer mon compte</button>
+            <p style="font-size: 12px; margin: 10px 0;">
+                Déjà un compte ? <span onclick="toggleAuthMode()" style="color: #e74c3c; cursor: pointer; text-decoration: underline;">Se connecter</span>
+            </p>
+        `;
+    } else {
+        // Retour au mode CONNEXION
+        window.currentAuthMode = 'login';
+        title.textContent = "Connexion";
+        authButtons.innerHTML = `
+            <button class="btn-restart" onclick="handleAuth()">Se connecter</button>
+            <p style="font-size: 12px; margin: 10px 0;">
+                Pas de compte ? <span onclick="toggleAuthMode()" style="color: #e74c3c; cursor: pointer; text-decoration: underline;">S'inscrire</span>
+            </p>
+        `;
+    }
+};
 
 // Gérer la connexion ou l'inscription
 window.handleAuth = async () => {
