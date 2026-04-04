@@ -274,36 +274,38 @@ window.handleAuth = async () => {
     const pass = document.getElementById('passInput').value;
 
     if (!email || !pass) {
-        alert("Merci de remplir tous les champs.");
+        alert("Veuillez remplir l'email et le mot de passe.");
         return;
     }
 
     try {
-        if (authMode === 'register') {
-            // CRÉATION DE COMPTE
+        // ON UTILISE BIEN window.currentAuthMode ICI
+        if (window.currentAuthMode === 'register') {
+            console.log("Tentative d'inscription...");
             const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
-            const user = userCredential.user;
-
-            // Création du document profil dans Firestore
-            await setDoc(doc(db, "users", user.uid), {
+            
+            // Création du profil dans Firestore
+            await setDoc(doc(db, "users", userCredential.user.uid), {
                 email: email,
-                createdAt: new Date(),
                 stats: { classicWon: 0, photoWon: 0, nicknameWon: 0 },
                 history: []
             });
-            
             alert("Compte créé avec succès !");
         } else {
-            // CONNEXION SIMPLE
+            console.log("Tentative de connexion...");
             await signInWithEmailAndPassword(auth, email, pass);
         }
     } catch (error) {
-        console.error(error);
-        let message = "Une erreur est survenue";
-        if (error.code === 'auth/email-already-in-use') message = "Cet email est déjà utilisé.";
-        if (error.code === 'auth/weak-password') message = "Le mot de passe est trop court (6 caractères min).";
-        if (error.code === 'auth/invalid-credential') message = "Email ou mot de passe incorrect.";
-        alert(message);
+        console.error("Erreur Firebase détaillée:", error);
+        
+        // Gestion des messages d'erreur courants
+        let msg = "Une erreur est survenue : " + error.message;
+        if (error.code === 'auth/invalid-email') msg = "L'adresse email n'est pas valide.";
+        if (error.code === 'auth/weak-password') msg = "Le mot de passe doit faire au moins 6 caractères.";
+        if (error.code === 'auth/email-already-in-use') msg = "Cet email est déjà utilisé par un autre compte.";
+        if (error.code === 'auth/invalid-credential') msg = "Email ou mot de passe incorrect.";
+        
+        alert(msg);
     }
 };
 
