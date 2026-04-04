@@ -91,7 +91,7 @@
     </style>
 </head>
 <body>
-    <div id="authModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 2000; justify-content: center; align-items: center;">
+    <div id="authModal" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 2000; justify-content: center; align-items: center;">
     <div class="modal-content" style="border: 2px solid #e74c3c; width: 300px;">
         <h2 id="authTitle">Connexion</h2>
         <input type="email" id="emailInput" placeholder="Email" style="margin-bottom: 10px;">
@@ -170,8 +170,70 @@
     </div>
 </div>
 
-<script>
+<script type="module">
+    // 1. IMPORTATION DES SERVICES
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+    // 2. CONFIGURATION
+    const firebaseConfig = {
+        apiKey: "AIzaSyANTO5VUOtcYmzdCl5uS3C2LnC96DFVUsA",
+        authDomain: "vroomdle-9af96.firebaseapp.com",
+        projectId: "vroomdle-9af96",
+        storageBucket: "vroomdle-9af96.firebasestorage.app",
+        messagingSenderId: "486110849294",
+        appId: "1:486110849294:web:1635a3bd7d5ca1b73e0f5f"
+    };
+
+    // 3. INITIALISATION
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // 4. ATTACHER LES FONCTIONS AU WINDOW (Pour que le HTML les voit)
+    window.handleAuth = async () => {
+        const email = document.getElementById('emailInput').value;
+        const pass = document.getElementById('passInput').value;
+        try {
+            if (authMode === 'register') {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+                await setDoc(doc(db, "users", userCredential.user.uid), {
+                    email: email, stats: { classicWon: 0, photoWon: 0, nicknameWon: 0 }, history: []
+                });
+            } else {
+                await signInWithEmailAndPassword(auth, email, pass);
+            }
+        } catch (error) {
+            alert("Erreur d'authentification : " + error.message);
+        }
+    };
+
+    // 5. GESTION DE L'AFFICHAGE DE LA MODALE
+    onAuthStateChanged(auth, async (user) => {
+        const modal = document.getElementById('authModal');
+        if (user) {
+            modal.style.display = 'none'; // Cache la fenêtre si connecté
+            const userDoc = await getDoc(doc(db, "users", user.uid));
+            window.userData = userDoc.data();
+            initGame(); // Lance le jeu seulement une fois connecté
+        } else {
+            modal.style.display = 'flex'; // Affiche la fenêtre si déconnecté
+        }
+    });
+
+    // On déplace aussi ta fonction saveWin ici pour qu'elle ait accès à 'db'
+    window.saveWin = async (mode, carName) => {
+        if (!auth.currentUser) return;
+        const userRef = doc(db, "users", auth.currentUser.uid);
+        await updateDoc(userRef, {
+            [`stats.${mode}Won`]: (window.userData.stats[mode + 'Won'] || 0) + 1,
+            history: arrayUnion({ car: carName, date: new Date().toLocaleDateString(), mode: mode })
+        });
+    };
+
+    // --- COPIE ICI TOUTE LA LOGIQUE DE TON JEU (cars, states, submitGuess, etc.) ---
+    
     let authMode = 'login';
 let userData = null;
 
@@ -505,93 +567,6 @@ async function saveWin(mode, carName) {
 
     document.addEventListener('click', (e) => { if (e.target !== input) list.innerHTML = ''; });
     initGame();
-</script>
-<!-- Remplace la fin de ton fichier par ceci -->
-<script type="module">
-    // 1. Imports nécessaires
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { 
-        getAuth, 
-        signInWithEmailAndPassword, 
-        createUserWithEmailAndPassword, 
-        onAuthStateChanged 
-    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { 
-        getFirestore, 
-        doc, 
-        getDoc, 
-        setDoc, 
-        updateDoc, 
-        arrayUnion 
-    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-    // 2. Ta configuration
-    const firebaseConfig = {
-        apiKey: "AIzaSyANTO5VUOtcYmzdCl5uS3C2LnC96DFVUsA",
-        authDomain: "vroomdle-9af96.firebaseapp.com",
-        projectId: "vroomdle-9af96",
-        storageBucket: "vroomdle-9af96.firebasestorage.app",
-        messagingSenderId: "486110849294",
-        appId: "1:486110849294:web:1635a3bd7d5ca1b73e0f5f"
-    };
-
-    // 3. Initialisation
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-
-    // 4. Rendre les fonctions accessibles au bouton HTML (onclick)
-    window.handleAuth = async () => {
-        const email = document.getElementById('emailInput').value;
-        const pass = document.getElementById('passInput').value;
-        const mode = document.getElementById('authTitle').textContent === 'Connexion' ? 'login' : 'register';
-
-        try {
-            if (mode === 'register') {
-                const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
-                await setDoc(doc(db, "users", userCredential.user.uid), {
-                    email: email,
-                    stats: { classicWon: 0, photoWon: 0, nicknameWon: 0 },
-                    history: []
-                });
-            } else {
-                await signInWithEmailAndPassword(auth, email, pass);
-            }
-        } catch (error) {
-            alert("Erreur: " + error.message);
-        }
-    };
-
-    // 5. Surveillance de la connexion
-    onAuthStateChanged(auth, async (user) => {
-        if (user) {
-            document.getElementById('authModal').style.display = 'none';
-            const userDoc = await getDoc(doc(db, "users", user.uid));
-            if (userDoc.exists()) {
-                window.userData = userDoc.data();
-                console.log("Connecté en tant que :", user.email);
-            }
-        } else {
-            document.getElementById('authModal').style.display = 'flex';
-        }
-    });
-
-    // 6. Rendre la fonction de sauvegarde disponible pour le script du jeu
-    window.saveWin = async (mode, carName) => {
-        if (!auth.currentUser) return;
-        const userRef = doc(db, "users", auth.currentUser.uid);
-        const fieldToUpdate = `stats.${mode}Won`;
-
-        await updateDoc(userRef, {
-            [fieldToUpdate]: (window.userData?.stats?.[mode + 'Won'] || 0) + 1,
-            history: arrayUnion({
-                car: carName,
-                date: new Date().toLocaleDateString(),
-                mode: mode
-            })
-        });
-    };
-</script>
 </script>
 
 </body>
