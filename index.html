@@ -99,7 +99,7 @@
         
         <div id="authButtons">
             <button class="btn-restart" onclick="handleAuth('login')">Se connecter</button>
-            <p style="font-size: 12px; margin: 10px 0;">Pas de compte ? <span onclick="toggleAuthMode()" style="color: #e74c3c; cursor: pointer; text-decoration: underline;">S'inscrire</span></p>
+            <p style="font-size: 12px; margin: 10px 0;">Pas de compte ? <span onclick="toggleAuth()" style="color: #e74c3c; cursor: pointer; text-decoration: underline;">S'inscrire</span></p>
         </div>
     </div>
 </div>
@@ -235,34 +235,64 @@
     // --- COPIE ICI TOUTE LA LOGIQUE DE TON JEU (cars, states, submitGuess, etc.) ---
     
     let authMode = 'login';
-let userData = null;
+    let userData = null;
 
-function toggleAuthMode() {
-    authMode = (authMode === 'login') ? 'register' : 'login';
-    document.getElementById('authTitle').textContent = (authMode === 'login') ? 'Connexion' : 'Inscription';
-}
+
+    window.toggleAuth = () => {
+        authMode = authMode === 'login' ? 'register' : 'login';
+        const title = document.getElementById('authTitle');
+        const btn = document.querySelector('#authModal button');
+        const link = document.querySelector('#authModal p');
+
+        if (authMode === 'register') {
+            title.textContent = "Inscription";
+            btn.textContent = "Créer mon compte";
+            link.innerHTML = 'Déjà un compte ? <a href="#" onclick="toggleAuth()">Se connecter</a>';
+        } else {
+            title.textContent = "Connexion";
+            btn.textContent = "Se connecter";
+            link.innerHTML = 'Pas de compte ? <a href="#" onclick="toggleAuth()">S\'inscrire</a>';
+        }
+    };
 
 // Gérer la connexion ou l'inscription
-async function handleAuth() {
+window.handleAuth = async () => {
     const email = document.getElementById('emailInput').value;
     const pass = document.getElementById('passInput').value;
 
+    if (!email || !pass) {
+        alert("Merci de remplir tous les champs.");
+        return;
+    }
+
     try {
         if (authMode === 'register') {
-            const userCredential = await createUserWithEmailAndPassword(window.auth, email, pass);
-            // Créer le profil dans Firestore
-            await setDoc(doc(window.db, "users", userCredential.user.uid), {
+            // CRÉATION DE COMPTE
+            const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+            const user = userCredential.user;
+
+            // Création du document profil dans Firestore
+            await setDoc(doc(db, "users", user.uid), {
                 email: email,
+                createdAt: new Date(),
                 stats: { classicWon: 0, photoWon: 0, nicknameWon: 0 },
                 history: []
             });
+            
+            alert("Compte créé avec succès !");
         } else {
-            await signInWithEmailAndPassword(window.auth, email, pass);
+            // CONNEXION SIMPLE
+            await signInWithEmailAndPassword(auth, email, pass);
         }
     } catch (error) {
-        alert("Erreur: " + error.message);
+        console.error(error);
+        let message = "Une erreur est survenue";
+        if (error.code === 'auth/email-already-in-use') message = "Cet email est déjà utilisé.";
+        if (error.code === 'auth/weak-password') message = "Le mot de passe est trop court (6 caractères min).";
+        if (error.code === 'auth/invalid-credential') message = "Email ou mot de passe incorrect.";
+        alert(message);
     }
-}
+};
 
 // Écouter le changement d'état (Connecté ou non)
 onAuthStateChanged(window.auth, async (user) => {
