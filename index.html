@@ -310,14 +310,22 @@ window.handleAuth = async () => {
 };
 
 // Écouter le changement d'état (Connecté ou non)
-onAuthStateChanged(window.auth, async (user) => {
+onAuthStateChanged(auth, async (user) => {
     if (user) {
         document.getElementById('authModal').style.display = 'none';
-        // Récupérer les données Firestore
-        const userDoc = await getDoc(doc(window.db, "users", user.uid));
-        userData = userDoc.data();
-        document.getElementById('userBadge').textContent = `Pilote : ${user.email.split('@')[0]}`;
-        console.log("Données utilisateur chargées :", userData);
+        
+        // 1. Récupérer les données Firestore
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        
+        if (userDoc.exists()) {
+            window.userData = userDoc.data();
+            console.log("Données utilisateur chargées :", window.userData);
+            
+            // 2. LANCER LE JEU SEULEMENT MAINTENANT
+            initGame(); 
+        } else {
+            console.error("Document utilisateur introuvable dans Firestore");
+        }
     } else {
         document.getElementById('authModal').style.display = 'flex';
     }
